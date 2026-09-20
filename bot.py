@@ -1,14 +1,27 @@
+import os
+import threading
 import telebot
+from flask import Flask
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
 
-# Pre-configured credentials as requested
 TOKEN = "8836273269:AAEQWAxU5mRbBdlAzY498XNXTLd-q31ZDkA"
 ADMIN_ID = 1232238066
 
 bot = telebot.TeleBot(TOKEN)
-
-# Secure in-memory store for dynamic products
 products = {}
+
+# Flask server to keep Render Free Tier alive 24/7
+app = Flask(__name__)
+
+
+@app.route("/")
+def home():
+  return "Bot is alive and running 24/7!"
+
+
+def run_flask():
+  port = int(os.environ.get("PORT", 10000))
+  app.run(host="0.0.0.0", port=port)
 
 
 @bot.message_handler(commands=["start"])
@@ -64,10 +77,8 @@ def handle_admin_upload(message):
   file_id = message.photo[-1].file_id
   payload = f"p_{message.message_id}"
 
-  # Map unique payload to product details
   products[payload] = {"link": file_link, "price": price_amount}
 
-  # Create secure dynamic button
   markup = InlineKeyboardMarkup()
   markup.add(
       InlineKeyboardButton(
@@ -75,7 +86,6 @@ def handle_admin_upload(message):
       )
   )
 
-  # Send channel-ready post template
   bot.send_photo(
       message.chat.id,
       file_id,
@@ -138,7 +148,6 @@ def got_payment(message):
 
   if prod_info:
     file_link = prod_info["link"]
-    # Deliver link privately to prevent public leaks
     bot.send_message(
         message.chat.id,
         f"🎉 **Payment Successful!**\n\nYeh raha tera secure link:\n{file_link}\n\n⚠️"
@@ -153,5 +162,16 @@ def got_payment(message):
 
 
 if __name__ == "__main__":
-  print("🚀 Universal Secure Cloud Bot is running 24/7...")
+  # Start Flask server thread for Render free tier
+  t = threading.Thread(target=run_flask)
+  t.daemon = True
+  t.start()
+
+  # Clear old webhook conflict automatically
+  try:
+    bot.remove_webhook()
+  except Exception:
+    pass
+
+  print("🚀 Universal Secure Cloud Bot is running 24/7 on Free Tier...")
   bot.infinity_polling()
